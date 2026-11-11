@@ -8,8 +8,13 @@ use std::{
 
 fn main() -> Result<(), Box<dyn Error>> {
     let program = args().nth(1).ok_or("Please provide a program name")?;
+    let app_id = args().nth(2);
     let mut socket = Socket::connect()?;
-    let matching_windows = find_windows(&mut socket, &program)?;
+    let app_id_to_focus = match &app_id {
+        Some(app_id) => &app_id,
+        None => &program,
+    };
+    let matching_windows = find_windows(&mut socket, &app_id_to_focus)?;
 
     if !matching_windows.is_empty() {
         focus_next_window(&mut socket, &matching_windows)?;
@@ -25,7 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn find_windows(socket: &mut Socket, program: &str) -> Result<Vec<Window>, Box<dyn Error>> {
+fn find_windows(socket: &mut Socket, app_id_to_focus: &str) -> Result<Vec<Window>, Box<dyn Error>> {
     let reply = socket.send(Request::Windows)??;
     let windows = match reply {
         niri_ipc::Response::Windows(windows) => windows,
@@ -37,7 +42,7 @@ fn find_windows(socket: &mut Socket, program: &str) -> Result<Vec<Window>, Box<d
             window
                 .app_id
                 .as_deref()
-                .is_some_and(|app_id| app_id.contains(program))
+                .is_some_and(|app_id| app_id.contains(app_id_to_focus))
         })
         .collect();
     Ok(matching_windows)
